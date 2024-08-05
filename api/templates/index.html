@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quiz List</title>
+</head>
+<body>
+    <h1>Available Quizzes</h1>
+    <ul>
+        {% if quizzes %}
+            {% for quiz in quizzes %}
+                <li>
+                    <a href="{% url 'session' quiz.id %}">{{ quiz.title }}</a>
+                </li>
+            {% endfor %}
+        {% else %}
+            <li>No quizzes available.</li>
+        {% endif %}
+    </ul>
+</body>
+</html>
