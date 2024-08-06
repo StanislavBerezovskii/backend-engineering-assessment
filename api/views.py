@@ -73,6 +73,7 @@ class TokenView(APIView):
 
 
 class IndexView(APIView):
+    """Demo view function for development. Shows all available Quizzes."""
     def get(self, request):
         api_url = f"{settings.API_BASE_URL}quizzes/"
         try:
