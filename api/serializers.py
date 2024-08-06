@@ -2,6 +2,7 @@ from django.conf import settings
 from rest_framework import serializers
 
 from quiz.models import Answer, Question, Quiz
+from session.models import QuizSession, Response
 from users.models import User
 from users.validators import validate_username
 
@@ -29,12 +30,7 @@ class UserSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ['username',
-                  'email',
-                  'first_name',
-                  'last_name',
-                  'bio',
-                  'role',]
+        fields = ['username', 'email', 'first_name', 'last_name', 'bio', 'role']
 
 
 class QuizSerializer(serializers.ModelSerializer):
@@ -58,13 +54,7 @@ class QuizSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Quiz
-        fields = ['id',
-                  'title',
-                  'author',
-                  'author_full_name',
-                  'question_count',
-                  'created_at',
-                  'questions']
+        fields = ['id', 'title', 'author', 'author_full_name', 'question_count', 'created_at', 'questions']
 
 
 class AnswerSerializer(serializers.ModelSerializer):
@@ -73,10 +63,7 @@ class AnswerSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Answer
-        fields = ['id',
-                  'question',
-                  'answer_text',
-                  'is_correct']
+        fields = ['id', 'question', 'answer_text', 'is_correct']
 
 
 class QuestionSerializer(serializers.ModelSerializer):
@@ -87,8 +74,39 @@ class QuestionSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Question
-        fields = ['id',
-                  'quiz',
-                  'quiz_title',
-                  'prompt',
-                  'answers']
+        fields = ['id', 'quiz', 'quiz_title', 'prompt', 'answers']
+
+
+class ResponseSerializer(serializers.ModelSerializer):
+    """Response model serializer."""
+    question_text = serializers.CharField(source='question.prompt', read_only=True)
+    selected_answer_text = serializers.CharField(source='selected_answer.answer_text', read_only=True)
+
+    class Meta:
+        model = Response
+        fields = ['id', 'session', 'question', 'question_text', 'selected_answer', 'selected_answer_text']
+        read_only_fields = ['id', 'question_text', 'selected_answer_text']
+
+
+class QuizSessionSerializer(serializers.ModelSerializer):
+    """QuizSession model serializer."""
+    user_username = serializers.CharField(source='user.username', read_only=True)
+    quiz_title = serializers.CharField(source='quiz.title', read_only=True)
+    responses = ResponseSerializer(many=True, read_only=True)
+    score = serializers.FloatField(read_only=True)
+    is_completed = serializers.BooleanField(read_only=True)
+    started_at = serializers.DateTimeField(read_only=True)
+    completed_at = serializers.DateTimeField(read_only=True)
+
+    class Meta:
+        model = QuizSession
+        fields = ['id', 'user', 'user_username', 'quiz', 'quiz_title', 'started_at',
+                  'completed_at', 'score', 'is_completed', 'responses']
+        read_only_fields = ['id', 'user_username', 'quiz_title', 'score', 'is_completed', 'started_at', 'completed_at']
+
+    def create(self, validated_data):
+        """Ensures that responses are not part of the creation process for QuizSession"""
+        responses_data = validated_data.pop('responses', None)
+        quiz_session = super().create(validated_data)
+        # Responses should be created separately, typically after the session is started
+        return quiz_session

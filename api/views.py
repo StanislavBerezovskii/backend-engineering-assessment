@@ -21,10 +21,13 @@ from api.permissions import (IsAdminOrSuperuser,
 from api.serializers import (AnswerSerializer,
                              QuestionSerializer,
                              QuizSerializer,
+                             QuizSessionSerializer,
+                             ResponseSerializer,
                              SignUpSerializer,
                              TokenSerializer,
                              UserSerializer)
 from quiz.models import Answer, Question, Quiz
+from session.models import QuizSession, Response as UserResponse
 from users.models import User
 
 
@@ -32,6 +35,7 @@ API_BASE_URL = getattr(settings, 'API_BASE_URL', 'http://127.0.0.1:8000/api/')
 
 
 class SignUpView(APIView):
+    """Handles user sign-up."""
     def post(self, request):
         serializer = SignUpSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -72,87 +76,10 @@ class TokenView(APIView):
                         status=status.HTTP_400_BAD_REQUEST)
 
 
-class IndexView(APIView):
-    """Demo view function for development. Shows all available Quizzes."""
-    def get(self, request):
-        api_url = f"{settings.API_BASE_URL}quizzes/"
-        try:
-            response = requests.get(api_url)
-            response.raise_for_status()  # Raise an exception for HTTP errors
-            quizzes = response.json()
-        except requests.RequestException as e:
-            # Log the error or handle it as needed
-            quizzes = []
-            print(f"Error fetching quizzes: {e}")
-
-        return render(request, 'index.html', {'quizzes': quizzes})
-
-
-class SessionView(APIView):
-    def get(self, request, quiz_id):
-        # API URL for fetching questions
-        api_url = f"{settings.API_BASE_URL}quizzes/{quiz_id}/get_all_questions/"
-        response = requests.get(api_url)
-
-        if response.status_code == 200:
-            questions = response.json()
-        else:
-            return render(request, 'error.html', {'message': 'Error fetching questions'})
-
-        # Initialize session variables if not already set
-        if 'current_question_index' not in request.session:
-            request.session['current_question_index'] = 0
-            request.session['user_answers'] = []
-
-        current_index = request.session['current_question_index']
-        if current_index < len(questions):
-            question = questions[current_index]
-        else:
-            # Quiz finished, calculate results
-            return self.calculate_results(request, questions)
-
-        return render(request, 'session.html', {'question': question, 'quiz_id': quiz_id})
-
-    def post(self, request, quiz_id):
-        selected_answer_id = request.data.get('answer_id')
-        if not selected_answer_id:
-            return render(request, 'error.html', {'message': 'No answer selected'})
-
-        # Store the selected answer
-        request.session['user_answers'].append(selected_answer_id)
-        request.session['current_question_index'] += 1
-
-        return redirect('session', quiz_id=quiz_id)
-
-    def calculate_results(self, request, questions):
-        correct_answers_count = 0
-        total_questions = len(questions)
-
-        # Check user's selected answers
-        for i, question in enumerate(questions):
-            selected_answer_id = request.session['user_answers'][i]
-            api_url = f"{settings.API_BASE_URL}/answers/{selected_answer_id}/"
-            response = requests.get(api_url)
-
-            if response.status_code == 200:
-                answer = response.json()
-                if answer.get('is_correct'):
-                    correct_answers_count += 1
-
-        # Clear session data
-        del request.session['current_question_index']
-        del request.session['user_answers']
-
-        return render(request, 'results.html', {
-            'correct_answers_count': correct_answers_count,
-            'total_questions': total_questions
-        })
-
-
 class UserViewSet(viewsets.ModelViewSet):
     """User model view set."""
     queryset = User.objects.all()
-    permission_classes = (AllowAny,)  # (IsAdminOrSuperuser,)
+    permission_classes = (IsAdminOrSuperuser,)
     serializer_class = UserSerializer
     lookup_field = 'username'
     filter_backends = (SearchFilter,)
@@ -160,7 +87,7 @@ class UserViewSet(viewsets.ModelViewSet):
 
     @action(detail=False,
             methods=('GET', 'PATCH'),
-            permission_classes= (AllowAny,),)  #(IsAuthenticated,),)
+            permission_classes=(IsAuthenticated,),)
     def me(self, request):
         serializer = UserSerializer(request.user)
         if request.method == 'PATCH':
@@ -174,8 +101,9 @@ class UserViewSet(viewsets.ModelViewSet):
 
 
 class QuizViewSet(viewsets.ModelViewSet):
+    """Quiz model view set."""
     queryset = Quiz.objects.all()
-    permission_classes = (AllowAny,)  # (IsStaffAdminOrReadOnly,)
+    permission_classes = (IsStaffAdminOrReadOnly,)
     serializer_class = QuizSerializer
 
     @property
@@ -210,8 +138,9 @@ class QuizViewSet(viewsets.ModelViewSet):
 
 
 class QuestionViewSet(viewsets.ModelViewSet):
+    """Question model view set."""
     queryset = Question.objects.all()
-    permission_classes = (AllowAny,)  # (IsStaffAdminOrReadOnly,)
+    permission_classes = (IsStaffAdminOrReadOnly,)
     serializer_class = QuestionSerializer
 
     @action(detail=True, methods=['get'])
@@ -222,10 +151,60 @@ class QuestionViewSet(viewsets.ModelViewSet):
 
 
 class AnswerViewSet(viewsets.ModelViewSet):
+    """Answer model view set."""
     queryset = Answer.objects.all()
-    permission_classes = (AllowAny,)  # (IsStaffAdminOrReadOnly,)
+    permission_classes = (IsStaffAdminOrReadOnly,)
     serializer_class = AnswerSerializer
 
     @property
     def paginator(self):
         self._paginator = None
+
+
+class QuizSessionViewSet(viewsets.ModelViewSet):
+    """QuizSession model view set."""
+    queryset = QuizSession.objects.all()
+    serializer_class = QuizSessionSerializer
+    permission_classes = (IsAuthenticated,)
+
+    def get_queryset(self):
+        """
+        Optionally restricts the returned quiz sessions to a given user,
+        by filtering against a `user` query parameter in the URL.
+        """
+        queryset = super().get_queryset()
+        user = self.request.user
+        if not user.is_staff:
+            queryset = queryset.filter(user=user)
+        return queryset
+
+    def perform_create(self, serializer):
+        """
+        Sets the user associated with the session to the current logged-in user.
+        """
+        serializer.save(user=self.request.user)
+
+
+class ResponseViewSet(viewsets.ModelViewSet):
+    """Response model view set."""
+    queryset = UserResponse.objects.all()
+    serializer_class = ResponseSerializer
+    permission_classes = (IsAuthenticated,)
+
+    def get_queryset(self):
+        """
+        Optionally restricts the returned responses to those related to a given session,
+        by filtering against a `session` query parameter in the URL.
+        """
+        queryset = super().get_queryset()
+        session_id = self.request.query_params.get('session_id')
+        if session_id is not None:
+            queryset = queryset.filter(session__id=session_id)
+        return queryset
+
+    def perform_create(self, serializer):
+        """
+        Sets additional data before creating a new response.
+        """
+        # Typically, the session and question are passed from the frontend
+        serializer.save()
