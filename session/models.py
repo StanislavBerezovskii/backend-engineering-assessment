@@ -1,3 +1,4 @@
+from datetime import datetime
 from django.db import models
 
 from quiz.models import Answer, Question, Quiz
@@ -30,7 +31,7 @@ class QuizSession(models.Model):
 
         self.score = (correct_responses / total_questions) * 100
         self.is_completed = True
-        self.completed_at = models.DateTimeField(auto_now_add=True)
+        self.completed_at = datetime.now()
         self.save()
 
     def __str__(self):

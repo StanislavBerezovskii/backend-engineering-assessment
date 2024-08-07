@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manage Quiz</title>
+</head>
+<body>
+    <h1>Manage Quiz: {{ quiz.title }}</h1>
+    <h2>Questions</h2>
+    <ul>
+        {% for question in questions %}
+        <li>{{ question.prompt }}</li>
+        {% endfor %}
+    </ul>
+    <!-- Add forms for adding/editing questions here if needed -->
+    <a href="{% url 'create_question' quiz.id %}">Add Question</a>
+</body>
+</html>

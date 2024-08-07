@@ -26,3 +26,11 @@ class IsStaffAdminOrReadOnly(permissions.BasePermission):
         return (request.method in permissions.SAFE_METHODS
                 or request.user.is_admin_or_superuser
                 or request.user.is_moderator)
+
+
+class IsStaffOrAdmin(permissions.BasePermission):
+    """Permission for staff and admins only."""
+    def has_permission(self, request, view):
+        return (request.user.is_authenticated
+                and (request.user.is_admin_or_superuser
+                     or request.user.is_staff))

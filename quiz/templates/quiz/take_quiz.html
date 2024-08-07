@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Take Quiz</title>
+</head>
+<body>
+    <h1>Take quiz: {{ quiz.title }}</h1>
+    <form action="{% url 'take_quiz' quiz.id %}" method="post">
+        {% csrf_token %}
+        {% for question in quiz.questions %}
+            <fieldset>
+                <legend>{{ question.prompt }}</legend>
+                {% for answer in question.answers %}
+                    <label>
+                        <input type="checkbox" name="responses" value="{{ answer.id }}">
+                        {{ answer.answer_text }}
+                    </label><br>
+                {% endfor %}
+            </fieldset>
+        {% endfor %}
+        <button type="submit">Submit Answers</button>
+    </form>
+</body>
+</html>
