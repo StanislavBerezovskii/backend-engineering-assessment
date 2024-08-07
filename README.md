@@ -12,7 +12,53 @@ part in the qiuzzes via the demo frontend platform and view the results.
 
 The project also includes API endpoints for user signup and JWT Token authorization with
 Email - based verification system.
- 
+
+## Installation:
+1. Fork and clone the repository:
+
+2. Install (if you do not already have it) pipenv and install project requirements with it:
+```
+pip install pipenv
+cd path/to/your/project
+pipenv install
+```
+3. Make sure to inspect the demo .env file in the root directory of the project with the following content
+   You can use the provided demo sqlite database and .env data (below) or generate your own:
+```
+DJANGO_SUPERUSER_PASSWORD="Localsuperus3rsecretpasswhere!"
+DJANGO_SUPERUSER_USERNAME="candidate"
+DJANGO_SUPERUSER_EMAIL="canddiate@example.com"
+
+JWT_TOKEN = "Bearer...'
+
+```
+4. Make migrations and migrate the database (if you do not wish to use demo):
+```
+python manage.py makemigrations
+python manage.py migrate
+```
+5. Create superuser for access to admin panel:
+```
+python manage.py createsuperuser
+```
+6. Create some test quizzes, questions and answers in the Admin Panel
+
+7. Run the project in development mode:
+```
+python manage.py runserver
+```
+8. Create a test user with a POST request to the signup API:
+```
+(POST) http://127.0.0.1:8000/api/auth/signup/
+```
+9. Get a JWT token for the new user and paste it into the .env file:
+```
+(POST) http://127.0.0.1:8000/api/auth/token/
+```
+10. Access the demo fronend with:
+```
+http://127.0.0.1:8000/quizzes/
+```
 
 ## Requirements
 - Docker
